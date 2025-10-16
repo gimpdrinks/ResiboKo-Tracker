@@ -107,14 +107,38 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ receipts, onDel
     return { filteredData: filtered, periodTitle: title };
   }, [receipts, activeFilter]);
   
-  const handleSync = () => {
-      setSyncStatus('syncing');
-      // In a real app, this would be an API call to a backend or a service like Google Apps Script.
-      // The service would handle OAuth and writing to the Google Sheet.
-      setTimeout(() => {
-          setSyncStatus('synced');
-          setTimeout(() => setSyncStatus('idle'), 2500); // Reset after 2.5 seconds
-      }, 1500);
+  const handleSync = async () => {
+    setSyncStatus('syncing');
+
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzoHCui3GWkDkfTzpjhoCp9kIeCvCyzrKKweEtuIAm9cVLmrYO0SiZaqg0a3GI5hRApIw/exec';
+
+    try {
+        // We send the receipts data in the body of the POST request.
+        // The Apps Script is set up to receive this data.
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            // mode: 'no-cors' is often necessary for simple browser-to-Apps-Script calls
+            // to avoid CORS errors. The downside is we can't read the response body.
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            // The body has to be a string, so we stringify our receipts array.
+            // The Apps Script expects an object with a 'receipts' key.
+            body: JSON.stringify({ receipts: receipts }),
+        });
+
+        // Since we can't read the response with 'no-cors', we'll assume success if the fetch doesn't throw an error.
+        setSyncStatus('synced');
+
+    } catch (error) {
+        console.error('Sync failed:', error);
+        alert('Syncing failed. Check the browser console for more details.');
+        setSyncStatus('idle'); // Reset on error
+    } finally {
+        // Reset the button state after a couple of seconds so the user can see the success message.
+        setTimeout(() => setSyncStatus('idle'), 2500);
+    }
   };
   
   const syncButtonText = {
